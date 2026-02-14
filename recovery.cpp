@@ -569,6 +569,7 @@ static Device::BuiltinAction PromptAndWait(Device* device, InstallResult status)
         break;
 
       case INSTALL_REBOOT:
+      case INSTALL_REBOOT_RECOVERY:
         // All the reboots should have been handled prior to entering PromptAndWait() or immediately
         // after installing a package.
         LOG(FATAL) << "Invalid status code of INSTALL_REBOOT";
@@ -690,6 +691,9 @@ change_menu:
         }
         if (status == INSTALL_NONE) {
           update_in_progress = false;
+        }
+        if (status == INSTALL_REBOOT_RECOVERY) {
+          return Device::REBOOT_RECOVERY;
         }
 
         ui->Print("\nInstall completed with status %d.\n", status);
@@ -1132,13 +1136,16 @@ error:
   // Determine the next action.
   //  - If the state is INSTALL_REBOOT, device will reboot into the target as specified in
   //    `next_action`.
+  //  - If the state is INSTALL_REBOOT_RECOVERY, device will reboot into recovery.
   //  - If the recovery menu is visible, prompt and wait for commands.
   //  - If the state is INSTALL_NONE, wait for commands (e.g. in user build, one manually boots
   //    into recovery to sideload a package or to wipe the device).
   //  - In all other cases, reboot the device. Therefore, normal users will observe the device
   //    rebooting a) immediately upon successful finish (INSTALL_SUCCESS); or b) an "error" screen
   //    for 5s followed by an automatic reboot.
-  if (status != INSTALL_REBOOT) {
+  if (status == INSTALL_REBOOT_RECOVERY) {
+    next_action = Device::REBOOT_RECOVERY;
+  } else if (status != INSTALL_REBOOT) {
     if (status == INSTALL_NONE || ui->IsTextVisible()) {
       auto temp = PromptAndWait(device, status);
       if (temp != Device::NO_ACTION) {
